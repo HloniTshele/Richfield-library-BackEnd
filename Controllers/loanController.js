@@ -210,7 +210,7 @@ export const getOverdueLoans = async (req, res, db) => {
 
 export const createLoan = async (req, res, db) => {
     try {
-        const { user_id, book_id, due_date } = req.body; // Removed admin_id
+        const { user_id, book_id, due_date } = req.body;
         
         console.log('Creating new loan:', { user_id, book_id, due_date });
 
@@ -250,15 +250,39 @@ export const createLoan = async (req, res, db) => {
         const trx = await db.transaction();
 
         try {
-            // Create loan record - ONLY using columns that exist in your schema
+            // Generate a short loan_id that fits within 10 characters
+            const generateShortId = () => {
+                const timestamp = Date.now().toString(36); // Base36 timestamp
+                const random = Math.random().toString(36).substr(2, 4); // 4 random chars
+                return `L${timestamp}${random}`.substr(0, 10); // Ensure max 10 chars
+            };
+
+            let loanId = generateShortId();
+            
+            // Check if loan_id already exists (unlikely but safe)
+            let attempts = 0;
+            let existingLoan = await trx('loans').where({ loan_id: loanId }).first();
+            while (existingLoan && attempts < 5) {
+                loanId = generateShortId();
+                existingLoan = await trx('loans').where({ loan_id: loanId }).first();
+                attempts++;
+            }
+
+            if (existingLoan) {
+                throw new Error('Could not generate unique loan ID');
+            }
+
+            console.log('Generated loan_id:', loanId);
+
+            // Create loan record with short loan_id
             const [loan] = await trx('loans')
                 .insert({
+                    loan_id: loanId,
                     user_id,
                     book_id,
                     loan_date: new Date(),
                     due_date: new Date(due_date),
                     status: 'active'
-                    // Removed created_by since it doesn't exist in your schema
                 })
                 .returning('*');
 
@@ -292,7 +316,6 @@ export const createLoan = async (req, res, db) => {
         });
     }
 };
-
 export const returnLoan = async (req, res, db) => {
     try {
         const { loan_id } = req.body; // Removed admin_id

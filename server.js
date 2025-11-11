@@ -16,7 +16,7 @@ import{getAllBooks ,getBookById, getBookByText, updateBook, deleteBook} from './
 import {submitRecommendation,getRecommendations} from './Controllers/recommendationController.js';
 import{getBooksDueForReturn, getUpcomingReturns, sendOverdueNotifications, sendDueSoonReminders} from './Controllers/Notification.js';
 import { getAllUsers,getUserById, getUserByText, getUserByRole,getUsersWithLoans,getUsersWithOverdueBooks } from './Controllers/userController.js';
-import { getAllLoans, getLoanById, getLoansByStatus, getOverdueLoans, createLoan,  returnLoan, updateLoanDueDate, deleteLoan } from './Controllers/loanController.js';
+import { getAllLoans, getLoanById, getLoansByStatus, getOverdueLoans, createLoan,  returnLoan, updateLoanDueDate, deleteLoan, searchLoansByText } from './Controllers/loanController.js';
 
 
 import {getAllReservations, getPendingReservations, updateReservationStatus, deleteReservation} from './Controllers/reservationController.js';
@@ -88,6 +88,7 @@ app.get('/user/:user_id', (req, res) => getUserById(req, res, db));
 app.get('/loans/all', (req, res) => getAllLoans(req, res, db));
 app.get('/loans/:loan_id', (req, res) => getLoanById(req, res, db));
 app.get('/loans/status/filter', (req, res) => getLoansByStatus(req, res, db));
+app.get('/loans/searchtext', (req, res) => searchLoansByText(req, res, db));
 app.get('/loans/overdue/all', (req, res) => getOverdueLoans(req, res, db));
 app.post('/loans/create', (req, res) => createLoan(req, res, db));
 app.put('/loans/return', (req, res) => returnLoan(req, res, db));

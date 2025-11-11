@@ -557,3 +557,60 @@ export const deleteLoan = async (req, res, db) => {
         });
     }
 };
+
+
+export const searchLoansByText = async (req, res, db) => {
+    try {
+        const { search } = req.query;
+        
+        console.log('🔍 SEARCHING LOANS:', search);
+
+        if (!search || search.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                error: 'Search term is required'
+            });
+        }
+
+        const searchTerm = `%${search}%`;
+
+        const loans = await db('loans')
+            .select(
+                'loans.loan_id',
+                'loans.user_id',
+                'users.name as user_name',
+                'users.email as user_email',
+                'loans.book_id',
+                'books.title as book_title',
+                'books.author as book_author',
+                'loans.loan_date',
+                'loans.due_date',
+                'loans.return_date',
+                'loans.status',
+                'loans.created_at'
+            )
+            .leftJoin('users', 'loans.user_id', 'users.user_id')
+            .leftJoin('books', 'loans.book_id', 'books.book_id')
+            .where(function() {
+                this.where('loans.loan_id', 'ilike', searchTerm)
+                    .orWhere('users.name', 'ilike', searchTerm)
+                    .orWhere('users.email', 'ilike', searchTerm)
+                    .orWhere('books.title', 'ilike', searchTerm)
+                    .orWhere('books.author', 'ilike', searchTerm)
+                    .orWhere('loans.status', 'ilike', searchTerm);
+            })
+            .orderBy('loans.loan_date', 'desc');
+
+        console.log(`✅ Found ${loans.length} loans matching "${search}"`);
+
+        res.json(loans);
+
+    } catch (err) {
+        console.error('❌ Error searching loans:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to search loans',
+            details: err.message
+        });
+    }
+};

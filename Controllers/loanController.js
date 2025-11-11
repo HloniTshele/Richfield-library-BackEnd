@@ -210,14 +210,14 @@ export const getOverdueLoans = async (req, res, db) => {
 
 export const createLoan = async (req, res, db) => {
     try {
-        const { user_id, book_id, due_date } = req.body;
+        const { user_id, book_id } = req.body; // Removed due_date from request body
         
-        console.log('Creating new loan:', { user_id, book_id, due_date });
+        console.log('Creating new loan:', { user_id, book_id });
 
-        if (!user_id || !book_id || !due_date) {
+        if (!user_id || !book_id) {
             return res.status(400).json({
                 success: false,
-                error: 'user_id, book_id, and due_date are required'
+                error: 'user_id and book_id are required'
             });
         }
 
@@ -250,6 +250,28 @@ export const createLoan = async (req, res, db) => {
         const trx = await db.transaction();
 
         try {
+            // CHECK: Count user's current active loans
+            const activeLoansCount = await trx('loans')
+                .where({ 
+                    user_id: user_id,
+                    status: 'active'
+                })
+                .count('* as count')
+                .first();
+
+            const currentLoans = parseInt(activeLoansCount.count);
+
+            console.log(`User ${user_id} currently has ${currentLoans} active loans`);
+
+            // ENFORCE MAXIMUM OF 3 LOANS
+            if (currentLoans >= 3) {
+                await trx.rollback();
+                return res.status(400).json({
+                    success: false,
+                    error: `Maximum loan limit reached. You cannot borrow more than 3 books at a time. You currently have ${currentLoans} active loans.`
+                });
+            }
+
             // Generate a short loan_id that fits within 10 characters
             const generateShortId = () => {
                 const timestamp = Date.now().toString(36); // Base36 timestamp
@@ -274,32 +296,46 @@ export const createLoan = async (req, res, db) => {
 
             console.log('Generated loan_id:', loanId);
 
+            // Calculate dates: loan date = today, due date = today + 3 days
+            const loanDate = new Date();
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 3); // 3-day loan period
+
+            console.log('Loan dates - Loan Date:', loanDate, 'Due Date:', dueDate);
+
             // Create loan record with short loan_id
             const [loan] = await trx('loans')
                 .insert({
                     loan_id: loanId,
                     user_id,
                     book_id,
-                    loan_date: new Date(),
-                    due_date: new Date(due_date),
+                    loan_date: loanDate,
+                    due_date: dueDate,
                     status: 'active'
                 })
                 .returning('*');
 
-            // Update book status
+            // Update book status and available copies
             await trx('books')
                 .where({ book_id })
-                .update({ status: 'borrowed' });
+                .update({ 
+                    status: 'borrowed',
+                    available_copies: db.raw('GREATEST(available_copies - 1, 0)')
+                });
 
             // Commit transaction
             await trx.commit();
 
             console.log('Loan created successfully:', loan.loan_id);
+            console.log('Book status updated to borrowed');
+            console.log(`User ${user_id} now has ${currentLoans + 1} active loans`);
 
             res.status(201).json({
                 success: true,
-                message: 'Loan created successfully',
-                loan: loan
+                message: 'Loan created successfully for 3 days',
+                loan: loan,
+                currentLoanCount: currentLoans + 1,
+                maxLoansAllowed: 3
             });
 
         } catch (transactionError) {

@@ -19,16 +19,18 @@ import { getAllUsers,getUserById, getUserByText, getUserByRole,getUsersWithLoans
 import { getAllLoans, getLoanById, getLoansByStatus, getOverdueLoans, createLoan,  returnLoan, updateLoanDueDate, deleteLoan } from './Controllers/loanController.js';
 
 
+import {getAllReservations, getPendingReservations, updateReservationStatus, deleteReservation} from './Controllers/reservationController.js';
+
 
 const db = knex({
   client: 'pg',
   connection: {
-    connectionString: 'postgresql://postgres:admin@localhost:5432/library_management',
-    host: 'localhost',
-    port: 5432,
-    user: 'postgres',
-    database: 'library_management',
-    password: 'admin'
+     host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'admin',
+    database: process.env.DB_NAME || 'library_management',
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   },
   pool: { min: 2, max: 10 }
 });
@@ -209,6 +211,12 @@ app.get('/notifications/books-due', (req, res) => getBooksDueForReturn(req, res,
 app.get('/notifications/upcoming-returns', (req, res) => getUpcomingReturns(req, res, db));
 app.post('/notifications/send-overdue', (req, res) => sendOverdueNotifications(req, res, db));
 app.post('/notifications/send-reminders', (req, res) => sendDueSoonReminders(req, res, db));
+
+app.get('/reservations/all', (req, res) => getAllReservations(req, res, db));
+app.get('/reservations/pending', (req, res) => getPendingReservations(req, res, db));
+app.put('/reservations/update-status', (req, res) => updateReservationStatus(req, res, db));
+app.delete('/reservations/delete', (req, res) => deleteReservation(req, res, db));
+
 
 
 app.listen(3000, () => {

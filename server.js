@@ -58,7 +58,7 @@ app.get('/profile/:user_id',(req,res)=>{profileHandler(req,res,db)});
 app.get('/books/available', async (req, res) => {bookAvailHandler(req,res,db)});
 
 // Get User Loans
-app.get('/loans/:user_id', async (req, res) => {loanedBookHandler(req,res,db)});
+app.get('/user-loans/:user_id', async (req, res) => {loanedBookHandler(req,res,db)});
 
 // Test function to debug 2FA verification
 
@@ -75,6 +75,7 @@ app.put('/books/update',  (req,res)=> updateBook(req,res,db));
 app.delete('/books/delete',  (req,res)=> deleteBook(req,res,db));
 
 //User request
+
 app.get('/user/all', (req, res) => getAllUsers(req, res, db));
 app.get('/user/searchtext', (req, res) => getUserByText(req, res, db));
 app.get('/user/role', (req, res) => getUserByRole(req, res, db));

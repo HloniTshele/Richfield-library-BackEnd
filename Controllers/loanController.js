@@ -1,7 +1,9 @@
 // Controllers/loanController.js
 export const getAllLoans = async (req, res, db) => {
     try {
-        console.log('=== GET ALL LOANS ===');
+        console.log('🎯 GET ALL LOANS ENDPOINT HIT!');
+        console.log('Request received at:', new Date().toISOString());
+        console.log('Request URL:', req.originalUrl);
         
         const loans = await db('loans')
             .select(
@@ -22,13 +24,18 @@ export const getAllLoans = async (req, res, db) => {
             .leftJoin('books', 'loans.book_id', 'books.book_id')
             .orderBy('loans.loan_date', 'desc');
 
-        console.log(`Found ${loans.length} loans`);
+        console.log(`📊 Found ${loans.length} loans in database`);
+        
+        if (loans.length === 0) {
+            console.log('ℹ️ No loans found in the database');
+        } else {
+            console.log('Sample loan:', loans[0]);
+        }
 
-        // Return direct array for frontend compatibility
         res.json(loans);
 
     } catch (err) {
-        console.error('Error fetching all loans:', err);
+        console.error('❌ Error in getAllLoans:', err);
         res.status(500).json({
             success: false,
             error: 'Failed to fetch loans',
@@ -36,7 +43,6 @@ export const getAllLoans = async (req, res, db) => {
         });
     }
 };
-
 export const getLoanById = async (req, res, db) => {
     try {
         const { loan_id } = req.params;

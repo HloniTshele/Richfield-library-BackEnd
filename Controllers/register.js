@@ -6,26 +6,46 @@ const handleRegister = async (req, res, db, bcrypt) => {
     }
 
     try {
+        // Check if email already exists first
+        const existingUser = await db('users').where({ email: email }).first();
+        if (existingUser) {
+            return res.status(400).json("Email already exists");
+        }
+
         const saltRounds = 12;
         const hash = await bcrypt.hash(password, saltRounds);
 
-        // Generate user_id
+        // Generate unique user_id with retry logic
         let user_id;
+        let attempts = 0;
+        const maxAttempts = 5;
         
-        if (role === 'student') {
-            const randomNum = Math.floor(10000000 + Math.random() * 90000000);
-            user_id = `S${randomNum}`;
-        } else {
-            const roleCode = role.charAt(0).toUpperCase();
-            const countResult = await db('users')
-                .where({ role: role })
-                .count('* as count')
-                .first();
-            const sequence = parseInt(countResult.count) + 1;
-            user_id = `${roleCode}${String(sequence).padStart(3, '0')}`;
+        while (attempts < maxAttempts) {
+            if (role === 'student') {
+                // For students: S + 8 random digits
+                const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+                user_id = `S${randomNum}`;
+            } else {
+                // For other roles: role code + timestamp + random to ensure uniqueness
+                const roleCode = role.charAt(0).toUpperCase();
+                const timestamp = Date.now().toString().slice(-6);
+                const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+                user_id = `${roleCode}${timestamp}${random}`;
+            }
+
+            // Check if user_id already exists
+            const existingId = await db('users').where({ user_id: user_id }).first();
+            if (!existingId) {
+                break; // Unique ID found
+            }
+            
+            attempts++;
+            if (attempts === maxAttempts) {
+                throw new Error('Could not generate unique user ID after multiple attempts');
+            }
         }
 
-        // Insert directly into users table
+        // Insert into users table
         const user = await db('users')
             .insert({
                 user_id: user_id,
@@ -48,11 +68,11 @@ const handleRegister = async (req, res, db, bcrypt) => {
     } catch (err) {
         console.error('Registration error:', err);
         
-        if (err.code === '23505') {
-            return res.status(400).json("Email already exists");
+        if (err.message.includes('unique constraint') || err.code === '23505') {
+            return res.status(400).json("Registration failed due to duplicate information. Please try again.");
         }
         
-        res.status(400).json("Unable to register");
+        res.status(400).json(err.message || "Unable to register");
     }
 };
 

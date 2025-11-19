@@ -60,7 +60,7 @@ app.get('/books/available', async (req, res) => {bookAvailHandler(req,res,db)});
 // Get User Loans
 app.get('/user-loans/:user_id', async (req, res) => {loanedBookHandler(req,res,db)});
 
-// Test function to debug 2FA verification
+
 
 
 

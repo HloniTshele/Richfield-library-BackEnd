@@ -139,36 +139,44 @@ export const updateBook = async (req, res, db) =>
         }
     };
 
-export const deleteBook = async (req, res, db) => 
-    {
-        // Fixed: Get ID from body instead of params
-        const { id } = req.body;
-        
-        try 
-        {
-            if (!id) 
-            {
-                return res.status(400).json(
-                    { error: 'Book ID is required for deletion' }
-                );
-            }
-
-            // Fixed: Corrected 'legnth' to 'length'
-            const deleted = await db('books').where({ book_id: id }).del().returning('*');
-            
-            if (deleted.length === 0) return res.status(404).json(
-                { error: 'Book has not been found' }
-            );
-            
-            res.json(
-                { message: 'Book has been successfully deleted! ', book: deleted[0] }
-            );
-
-        } catch (err) 
-        {
-            console.error('Error when deleting book: ', err);
-            res.status(500).json(
-                { error: 'Failed to delete the book' }
-            );
+// backend
+export const deleteBook = async (req, res, db) => {
+    // Fixed: Get ID from body instead of params
+    const { id } = req.body;
+    
+    try {
+        if (!id) {
+            return res.status(400).json({ error: 'Book ID is required for deletion' });
         }
-    };
+
+        // Check if the book is currently loaned
+        const activeLoans = await db('loans')
+            .where({ 
+                book_id: id, 
+                status: 'active' 
+            })
+            .select('loan_id');
+
+        if (activeLoans.length > 0) {
+            return res.status(400).json({ 
+                error: 'Cannot delete book: Book is currently loaned out' 
+            });
+        }
+
+        // Fixed: Corrected 'legnth' to 'length'
+        const deleted = await db('books').where({ book_id: id }).del().returning('*');
+        
+        if (deleted.length === 0) {
+            return res.status(404).json({ error: 'Book has not been found' });
+        }
+        
+        res.json({ 
+            message: 'Book has been successfully deleted!', 
+            book: deleted[0] 
+        });
+
+    } catch (err) {
+        console.error('Error when deleting book: ', err);
+        res.status(500).json({ error: 'Failed to delete the book' });
+    }
+};
